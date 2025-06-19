@@ -27,7 +27,11 @@ if uploaded_file is not None:
     st.subheader("DICOM Header Information Check")
 
     # Extract required values
-    ## Transfer Syntax UID
+    ## Media Storage SOP Class
+    sop_class_uid = dicom_data.file_meta.MediaStorageSOPClassUID
+    sop_class_value = UID(sop_class_uid).name
+    
+    ## Transfer Syntax
     transfer_syntax_uid = dicom_data.file_meta.TransferSyntaxUID
     transfer_syntax_value = UID(transfer_syntax_uid).name
 
@@ -38,13 +42,15 @@ if uploaded_file is not None:
     )
 
     # Expected values
+    expected_sop_class = "MR/CT/PET. Shouldn't be Secondary Capture Image"
     expected_transfer_syntax = "Explicit/Implicit VR Little Endian"
-    expected_orientation_desc = "Integers either 0 or +-1"
+    expected_orientation_desc = "For CT: integers either 0 or +-1"
 
     # Build DataFrame for display
     table_data = [
-        {"Code": "(0002,0010)","Header": "Transfer Syntax", "Value": str(transfer_syntax_value), "Expected": expected_transfer_syntax},
-        {"Code": "(0020,0037)","Header": "Image Orientation Patient", "Value": str(image_orientation_value), "Expected": expected_orientation_desc}
+        {"Code": "(0002,0002)","Header": "Media Storage SOP Class", "Value": str(sop_class_value), "Expected": expected_sop_class, "Solution if unexpected": "Image was created outside imaging device and cannot be used."},
+        {"Code": "(0002,0010)","Header": "Transfer Syntax", "Value": str(transfer_syntax_value), "Expected": expected_transfer_syntax, "Solution if unexpected": "Image was compressed. Run the Decompression tool."},
+    #    {"Code": "(0020,0037)","Header": "Image Orientation Patient", "Value": str(image_orientation_value), "Expected": expected_orientation_desc, "Solution if unexpected": "CT was acquired with gantry tilt and cannot be used"}
     ]
     df = pd.DataFrame(table_data)
 
