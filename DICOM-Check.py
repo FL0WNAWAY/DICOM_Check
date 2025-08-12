@@ -19,7 +19,6 @@ import zipfile
 # Manually define PET SOP Class UID (Standard UID for PET Image Storage)
 PETImageStorage = "1.2.840.10008.5.1.4.1.1.128"
 
-
 st.title("DICOM Checker")
 
 #####################################################################
@@ -34,15 +33,39 @@ if uploaded_file is not None:
 
     # Display the DICOM image
     if 'PixelData' in dicom_data:
-        image = dicom_data.pixel_array
+        image = dicom_data.pixel_array.astype(np.int16)
+
         st.subheader("DICOM Image")
+
         if image.ndim == 2 or (image.ndim == 3 and dicom_data.SamplesPerPixel == 3):
-            st.image(image, caption="DICOM Image", use_container_width=True, clamp=True)
+            display_image = image
+            #st.image(image, caption="DICOM Image", use_container_width=True, clamp=True)
         elif image.ndim == 3 and dicom_data.SamplesPerPixel == 1:
             st.success("The DICOM file contains a 3D image. The middle slice is displayed below")
-            st.image(image[image.shape[0]//2,:,:], caption="DICOM Image", use_container_width=True, clamp=True)
-        else:
-            st.warning("PixelData cannot be displayed.")
+            display_image = image[image.shape[0]//2,:,:]
+            #st.image(image[image.shape[0]//2,:,:], caption="DICOM Image", use_container_width=True, clamp=True)
+        
+        # get default window center and width
+        default_wc = int(dicom_data.get("WindowCenter", np.mean(display_image)))
+        default_ww = int(np.max(display_image) - np.min(display_image))
+
+        # slider for window / level
+        wc = st.slider("Window Center (Level)", min_value = int(np.min(display_image)), max_value = int(np.max(display_image)), value = default_wc)
+        ww = st.slider("Window Width", min_value = 1, max_value = int(np.max(display_image)), value = default_ww)
+
+        # apply window / level
+        def apply_window(image, wc, ww):
+            img = image.copy().astype(np.float32)
+            min_val = wc - ww / 2
+            max_val = wc + ww / 2
+            img = np.clip(img, min_val, max_val)
+            img = (img - min_val) / (max_val - min_val)  # Normalize to [0,1]
+            img = (img * 255).astype(np.uint8)  # Convert to 8-bit for display
+            return img
+        
+        windowed_image = apply_window(display_image, wc, ww)
+        st.image(windowed_image, use_container_width=True, clamp=True)   
+        
     else:
         st.warning("No PixelData found in the DICOM file.")
 
